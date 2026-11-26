@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>CYBER ARENA — Webinar Mode</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#070b12;--fg:#e6f0fa;--mut:#8da0b4;--pn:rgba(6,11,19,.88);--bd:#22344a;--ac:#3aa0d8;color-scheme:dark}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:16px system-ui,sans-serif;overflow:hidden}
+canvas{display:block}
+#load{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:9;letter-spacing:.35em;font-size:20px;transition:opacity .6s}
+#title{position:fixed;bottom:9vh;max-width:min(46vw,760px);padding:0 4vw;z-index:4;transition:all .5s}
+#title.L{left:0}#title.R{right:0}
+#num{color:var(--ac);letter-spacing:.3em;font-size:clamp(12px,1.1vw,18px)}
+#t{font-size:clamp(26px,3.6vw,60px);font-weight:700;line-height:1.1;margin:.2em 0;text-shadow:0 2px 24px #000}
+#d,#kt,#ex{font-size:clamp(14px,1.5vw,24px);line-height:1.5;color:#c3d3e3;text-shadow:0 1px 12px #000}
+#kt,#ex{color:var(--mut)}#kt b,#ex b{color:var(--ac);font-weight:600}
+#title.small #d,#title.small #kt,#title.small #ex{display:none}#title.small #t{font-size:clamp(20px,2.4vw,40px)}
+#title[dir=rtl]{text-align:right}
+#pts p{font-size:clamp(18px,2vw,32px);line-height:1.55;margin:.5em 0;text-shadow:0 1px 14px #000}
+#pts ul{margin:.4em 0;padding-inline-start:1.2em}#pts li{font-size:clamp(16px,1.9vw,30px);line-height:1.45;margin:.5em 0;text-shadow:0 1px 14px #000}
+#term{position:fixed;top:11vh;bottom:9vh;width:min(48vw,900px);background:var(--pn);border:1px solid var(--bd);border-radius:10px;z-index:4;display:none;flex-direction:column;backdrop-filter:blur(6px);direction:ltr}
+#term.L{left:3vw}#term.R{right:3vw}
+#th{padding:8px 14px;border-bottom:1px solid var(--bd);color:var(--mut);font-size:clamp(11px,1vw,15px);letter-spacing:.15em;display:flex;justify-content:space-between}
+#tb{flex:1;overflow:auto;padding:14px;font:clamp(13px,1.4vw,22px)/1.55 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;color:#a8e8b8}
+#tb div{min-height:1.5em}.k{color:#7cc4ff}.a{color:#c9a8ff}.w{color:#ffcf5a}.m{color:#7c8da0}
+#bar{height:3px;background:var(--bd)}#bar div{height:100%;width:0;background:var(--ac)}
+#dots{position:fixed;left:0;right:0;bottom:0;padding:10px 0;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;gap:10px;z-index:5;align-items:center}
+#dots i{width:34px;height:4px;background:#2a3b50;border-radius:2px;cursor:pointer}#dots i.on{background:var(--ac)}#dots i.done{background:#4a6784}
+#dots button,#ctl button{background:var(--pn);color:var(--fg);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit}
+#ctl{position:fixed;top:0;right:0;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top,0px));display:flex;gap:6px;z-index:5}
+#brand{position:fixed;top:0;left:0;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top,0px));z-index:5;letter-spacing:.3em;font-weight:700;font-size:14px}
+#brand span{color:var(--mut);letter-spacing:.1em;font-weight:400;margin-inline-start:12px;font-size:12px}
+#notes{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));width:min(560px,90vw);background:var(--pn);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;z-index:6;display:none;font-size:14px;line-height:1.6}
+body.hide #title,body.hide #term,body.hide #dots,body.hide #ctl,body.hide #brand,body.hide #clock{display:none!important}
+</style></head><body>
+<div id="load">CYBER ARENA</div>
+<div id="brand">CYBER ARENA<span id="sub"></span></div>
+<div id="ctl"><button id="bp">◀</button><button id="bn">▶</button><button id="bl">فارسی</button><button id="bf">⛶</button></div>
+<div id="title" class="L"><div id="num"></div><div id="t"></div><div id="d"></div><div id="kt"></div><div id="ex"></div><div id="pts"></div></div>
+<div id="term" class="R"><div id="th"><span id="tn"></span><span>SIMULATION · NO REAL SCANNING</span></div><div id="bar"><div></div></div><div id="tb"></div></div>
+<div id="notes"></div>
+<div id="clock" style="position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:5;font:600 14px ui-monospace,monospace;color:#8da0b4"></div>
+<div id="dots"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// Chapters: scripted, deterministic. Each step = [command, output]; a key press plays the next step automatically.
+const CH=[
+{id:'open',c:0x3aa0d8,en:'Cybersecurity in the Age of AI',fa:'امنیت سایبری در عصر هوش مصنوعی',
+ de:'Welcome to CYBER ARENA: seven departments, one story. AI is changing how we attack, defend and investigate.',df:'به CYBER ARENA خوش آمدید: هفت بخش، یک داستان. هوش مصنوعی نحوه حمله، دفاع و بررسی را تغییر می‌دهد.',
+ n:'Intro (30s): who you are, the 7 departments, simulated demos only.',nf:'مقدمه (۳۰ ثانیه): معرفی خود، هفت بخش، همه دموها شبیه‌سازی‌شده‌اند.',steps:[]},
+{id:'pentest',c:0x3aa0d8,en:'AI Pentest Laboratory',fa:'آزمایشگاه تست نفوذ هوشمند',
+ de:'An AI assistant guides a pentest of demo.lab, each step using the previous findings.',df:'یک دستیار هوشمند تست نفوذ demo.lab را هدایت می‌کند و هر مرحله از یافته‌های قبلی استفاده می‌کند.',
+ kt:'Recon · Fingerprinting · SAST/DAST · CVE research',ex:'Validated critical finding + report',
+ n:'Stress: AI explains WHY each step matters. Say it is a scripted simulation.',nf:'تأکید: هوش مصنوعی دلیل هر مرحله را توضیح می‌دهد. بگویید شبیه‌سازی از پیش نوشته‌شده است.',
+ steps:[
+ ['pentest start --target demo.lab','[+] Scope locked: demo.lab (10.10.10.5) SIMULATED\n[AI] Authorized lab target. Next: map exposure with recon.'],
+ ['recon start','[*] Subdomains: app, api, admin\n[AI] Three hosts widen the attack surface; admin is highest value.'],
+ ['target info','Stack: nginx 1.18, Tomcat 9, Java 8, Log4j 2.14.1\n[AI] Log4j 2.14.1 is in the range affected by CVE-2021-44228.'],
+ ['services enumerate','22/tcp ssh   80/tcp nginx   8080/tcp Tomcat (app)\n[AI] The Java app on 8080 is the interesting service.'],
+ ['surface analyze','Entry points: /login, /search?q=, /api/v1/user\n[AI] /search input is logged server-side: Log4j JNDI lookup risk.'],
+ ['vuln scan','WEB-001 CRITICAL Log4Shell at /search\nWEB-002 MEDIUM  Missing security headers\nWEB-003 LOW     Version banner exposed'],
+ ['ai analyze --finding WEB-001','Root cause: Log4j resolves ${jndi:...} in logged strings.\nImpact: remote code execution in the app context.'],
+ ['exploit assess --finding WEB-001','Exploitability HIGH. Safe validation: DNS canary only, callback seen [SIMULATED].\nFix: Log4j >= 2.17.1, disable lookups, restrict egress.'],
+ ['cve CVE-2021-44228','Log4Shell: Log4j 2.0-beta9 to 2.14.1, JNDI lookup in message formatting.\nPrereq: attacker-controlled string gets logged. Mitigation: 2.17.1+.'],
+ ['report generate','=== REPORT: demo.lab (simulated) ===\nCritical 1 · Medium 1 · Low 1\nTop: WEB-001 validated via safe canary. Fix: upgrade, egress filter, WAF stopgap.']]},
+{id:'red',c:0xe0485a,en:'Red Team Operations',fa:'عملیات تیم قرمز',
+ de:'Adversary simulation in a lab network, mapped to MITRE ATT&CK.',df:'شبیه‌سازی مهاجم در شبکه آزمایشی با نگاشت به MITRE ATT&CK.',
+ kt:'ATT&CK · Phishing · Lateral movement',ex:'Objective reached, techniques evidenced',
+ n:'Walk the kill chain; mention each ATT&CK ID.',nf:'زنجیره حمله را مرور کنید و هر شناسه ATT&CK را بگویید.',
+ steps:[['recon osint','Exposed VPN portal and staff emails found. [T1593]'],['access phish','Simulated phish: user jdoe credentials captured. [T1566]'],['privesc enum','Misconfigured local service on WS-14. [T1068]'],['lateral move','Pivot WS-14 -> FS01 via SMB. [T1021]'],['objective report','Domain admin on DC01 reached (simulated). 4 techniques evidenced.']]},
+{id:'soc',c:0x35c46b,en:'SOC Operations Center',fa:'مرکز عملیات امنیت',
+ de:'ALERT HIGH: Event 4625, 192.168.50.25 to DC01, 147 failed logons. Investigate with SPL.',df:'هشدار بالا: رویداد 4625 از 192.168.50.25 به DC01، ۱۴۷ ورود ناموفق. با SPL بررسی کنید.',
+ kt:'SIEM · SPL · Detection engineering',ex:'Confirmed incident + containment',
+ n:'Blue-team answer to the previous chapter. Read the SPL aloud.',nf:'پاسخ تیم آبی به فصل قبل. کوئری SPL را بخوانید.',
+ steps:[['index=windows EventCode=4625 | stats count by src_ip, Account_Name','src_ip          Account_Name   count\n192.168.50.25   administrator  96\n192.168.50.25   svc_backup     41\n192.168.50.25   jsmith         10'],
+ ['index=windows EventCode=4624 src_ip=192.168.50.25','09:14:02 4624 svc_backup LogonType=3\n[!] Success after failures: password spray hit'],
+ ['investigation summary','Severity HIGH (confirmed). svc_backup likely compromised.\nContain: isolate host, reset account, review its activity.']]},
+{id:'vuln',c:0xf0b429,en:'Vulnerability Research Lab',fa:'آزمایشگاه تحقیق آسیب‌پذیری',
+ de:'Audit a small C parser: find, classify and assess a bug.',df:'ممیزی یک پارسر C: یافتن، دسته‌بندی و ارزیابی باگ.',
+ kt:'Source audit · CWE · Fuzzing',ex:'Root cause + fix',
+ n:'Show how AI speeds up code review, humans still validate.',nf:'نشان دهید AI بازبینی کد را سریع می‌کند و انسان تأیید می‌کند.',
+ steps:[['audit parse.c','Line 42: memcpy(buf, in, len), len from header, buf[64]'],['classify','CWE-787 out-of-bounds write (stack)'],['fuzz --time 60','Crash at 1,204 execs: len=0x200 [SIMULATED]'],['assess','Exploitability medium (stack canary). Fix: bound len to sizeof(buf).']]},
+{id:'ti',c:0xa070f0,en:'Threat Intelligence Center',fa:'مرکز اطلاعات تهدید',
+ de:'Enrich IOCs and profile a fictional actor, APT-DEMO.',df:'غنی‌سازی IOC و پروفایل بازیگر فرضی APT-DEMO.',
+ kt:'IOC · TTP · Campaign analysis',ex:'Actor profile',
+ n:'Data is fictional demo data.',nf:'داده‌ها فرضی و نمایشی هستند.',
+ steps:[['ioc 203.0.113.9','C2 infrastructure of APT-DEMO, 14 reports (demo data)'],['domain update-cdn.example','Registered 3 days ago, resolves to 203.0.113.9'],['actor APT-DEMO','TTPs: T1566, T1059, T1071. Target: finance. Confidence: moderate']]},
+{id:'dfir',c:0x40d0c0,en:'Digital Forensics Lab',fa:'آزمایشگاه فارنزیک دیجیتال',
+ de:'Rebuild the intrusion timeline from disk, memory and logs.',df:'بازسازی خط زمانی نفوذ از دیسک، حافظه و لاگ‌ها.',
+ kt:'Disk · Memory · Timeline',ex:'Initial access identified',
+ n:'Ties back to the SOC alert.',nf:'به هشدار SOC برمی‌گردد.',
+ steps:[['acquire disk01','Image acquired, SHA256 verified (demo)'],['memory pslist','PID 4412 powershell.exe, parent winword.exe [suspicious]'],['timeline build','09:02 doc opened > 09:03 powershell > 09:05 outbound 203.0.113.9'],['report','Initial access: malicious macro. No persistence found.']]},
+{id:'net',c:0x5aa0ff,en:'Network Security Lab',fa:'آزمایشگاه امنیت شبکه',
+ de:'Discovery, port scan and firewall review on a simulated /24.',df:'کشف، اسکن پورت و بازبینی فایروال روی یک شبکه /24 شبیه‌سازی‌شده.',
+ kt:'Discovery · Firewall · Segmentation',ex:'Rule fix recommendation',
+ n:'Final department; prepare closing.',nf:'آخرین بخش؛ آماده جمع‌بندی.',
+ steps:[['discover 10.10.10.0/24','4 hosts up: .1 gw, .5 web, .10 db, .20 files'],['portscan 10.10.10.10','5432/tcp postgres reachable from user VLAN [!]'],['firewall review','Rule 14: any -> db:5432 allow. Restrict to app subnet.']]},
+{id:'end',c:0x3aa0d8,en:'Questions & Discussion',fa:'پرسش و پاسخ',
+ de:'AI transforms pentesting, research, analysis and investigation: humans decide, AI accelerates.',df:'هوش مصنوعی تست نفوذ، تحقیق، تحلیل و بررسی را متحول می‌کند: انسان تصمیم می‌گیرد، AI شتاب می‌دهد.',
+ n:'Close with the central message, open Q&A.',nf:'با پیام اصلی جمع‌بندی و پرسش و پاسخ را باز کنید.',steps:[]}];
+CH.splice(3,0,CH.splice(4,1)[0]); // order: pentest, red, vuln (Part 2) then soc, ti, dfir, net (Part 3)
+// Talk slides per chapter: [title en, title fa, bullets en, bullets fa]
+const SL={
+open:[['What is cybersecurity?','امنیت سایبری چیست؟',['Protecting systems, data and people from misuse','CIA triad: Confidentiality, Integrity, Availability','Goal: reduce risk, not reach zero risk'],['محافظت از سیستم‌ها، داده‌ها و افراد در برابر سوءاستفاده','سه‌گانه CIA: محرمانگی، یکپارچگی، دسترس‌پذیری','هدف کاهش ریسک است، نه رسیدن به ریسک صفر']],
+['Who plays the game','بازیگران این میدان',['Attackers: criminals, state actors, insiders','Red team attacks, blue team defends, purple team connects them','SOC watches, investigates and responds 24/7'],['مهاجمان: مجرمان، دولت‌ها، افراد داخلی','تیم قرمز حمله می‌کند، تیم آبی دفاع می‌کند، تیم بنفش آن دو را وصل می‌کند','SOC شبانه‌روز پایش، بررسی و پاسخ می‌دهد']],
+['AI on the attacker side','هوش مصنوعی در سمت مهاجم',['Convincing phishing in any language, at scale','Faster recon and code analysis','Lower skill barrier: more attackers, faster'],['فیشینگ متقاعدکننده به هر زبان و در مقیاس بالا','شناسایی و تحلیل کد سریع‌تر','آستانه مهارت پایین‌تر: مهاجم بیشتر، سرعت بیشتر']],
+['AI on the defender side','هوش مصنوعی در سمت مدافع',['Alert triage and summaries','Detection rules and queries drafted faster','Analysts spend time on judgment, not routine'],['اولویت‌بندی و خلاصه‌سازی هشدارها','نوشتن سریع‌تر قوانین تشخیص و کوئری‌ها','تحلیلگر وقت را صرف قضاوت می‌کند، نه کار تکراری']],
+['New risks and the human role','ریسک‌های جدید و نقش انسان',['AI can be wrong: validate every claim','AI systems are targets too: prompt injection, data leakage','Humans decide, AI accelerates'],['AI می‌تواند اشتباه کند: هر ادعا باید تأیید شود','سامانه‌های AI هم هدف‌اند: تزریق پرامپت، نشت داده','انسان تصمیم می‌گیرد، AI شتاب می‌دهد']]],
+pentest:[['Pentest lifecycle and where AI helps','چرخه تست نفوذ و جایگاه AI',['Recon, fingerprinting, vulnerability analysis, validation, reporting','AI speeds up analysis and writing, not authorization','Always: written scope and rules of engagement'],['شناسایی، اثرانگشت‌گیری، تحلیل آسیب‌پذیری، تأیید، گزارش‌دهی','AI تحلیل و نگارش را سریع می‌کند، نه مجوز را','همیشه: محدوده و قواعد درگیری کتبی']],
+['Watch the AI assistant work','دستیار هوشمند را در حال کار ببینید',['Each step feeds the next','The assistant explains why, not just what','Simulated target, scripted and repeatable'],['هر مرحله ورودی مرحله بعد است','دستیار دلیل را هم توضیح می‌دهد','هدف شبیه‌سازی‌شده، از پیش نوشته‌شده و تکرارپذیر']]],
+red:[['AI-assisted adversary simulation','شبیه‌سازی مهاجم با کمک AI',['Plan scenarios and map them to MITRE ATT&CK','Draft realistic but safe phishing lures for authorized exercises','Limit: humans own scope, impact and ethics'],['طراحی سناریو و نگاشت به MITRE ATT&CK','نوشتن طعمه‌های فیشینگ واقع‌نما ولی ایمن برای تمرین‌های مجاز','محدودیت: دامنه، اثر و اخلاق با انسان است']]],
+vuln:[['AI in bug bounty','هوش مصنوعی در باگ‌بانتی',['Scope analysis and asset prioritisation','Triage notes, duplicate checks, clearer reports','Never submit unverified AI output: noise hurts your reputation'],['تحلیل محدوده و اولویت‌بندی دارایی‌ها','یادداشت تریاژ، بررسی تکراری‌بودن، گزارش واضح‌تر','هرگز خروجی تأییدنشده AI را ارسال نکنید: نویز اعتبارتان را می‌برد']],
+['AI in code audit and research','هوش مصنوعی در ممیزی کد و تحقیق',['Spot risky patterns, suggest CWE and fixes','Help write fuzz harnesses and read patch diffs','AI finds candidates, humans confirm exploitability'],['تشخیص الگوهای پرخطر، پیشنهاد CWE و اصلاح','کمک به نوشتن harness فازینگ و خواندن diff وصله','AI کاندید پیدا می‌کند، انسان قابلیت بهره‌برداری را تأیید می‌کند']]],
+soc:[['AI in the SOC','هوش مصنوعی در SOC',['Summarise alerts, enrich context, suggest next steps','Draft SPL queries from plain language, then review them','Risk: confident wrong answers, so keep analysts in the loop'],['خلاصه‌سازی هشدار، غنی‌سازی زمینه، پیشنهاد گام بعد','نوشتن پیش‌نویس SPL از زبان ساده و سپس بازبینی','ریسک: پاسخ اشتباه با اطمینان بالا، پس تحلیلگر در حلقه بماند']]],
+ti:[['AI in threat intelligence','هوش مصنوعی در اطلاعات تهدید',['Read and summarise large volumes of reports','Extract IOCs and TTPs into structured data','Verify sources before acting'],['خواندن و خلاصه‌سازی حجم زیاد گزارش','استخراج IOC و TTP به داده ساختاریافته','قبل از اقدام، منابع را راستی‌آزمایی کنید']]],
+dfir:[['AI in digital forensics','هوش مصنوعی در فارنزیک دیجیتال',['Correlate events into timelines faster','Explain suspicious artifacts and commands','Evidence integrity stays a human responsibility'],['همبسته‌سازی سریع‌تر رویدادها در خط زمانی','توضیح artifactها و دستورهای مشکوک','صحت شواهد مسئولیت انسان است']]],
+net:[['AI in network security','هوش مصنوعی در امنیت شبکه',['Anomaly detection on traffic baselines','Firewall rule review and segmentation suggestions','Changes still need human approval'],['تشخیص ناهنجاری روی خط پایه ترافیک','بازبینی قوانین فایروال و پیشنهاد بخش‌بندی','تغییرات همچنان به تأیید انسان نیاز دارند']]],
+end:[['Key takeaways','نکات کلیدی',['AI is a force multiplier on both sides','Validate, scope and stay ethical','Start small: pick one workflow and measure it'],['AI ضریب‌افزای هر دو طرف است','تأیید، محدوده و اخلاق را رعایت کنید','کوچک شروع کنید: یک جریان کاری را انتخاب و اندازه بگیرید']],
+['Questions and discussion','پرسش و پاسخ',['Will AI replace pentesters and analysts?','How do we trust AI findings?','Where should a beginner start?'],['آیا AI جای پنتسترها و تحلیلگران را می‌گیرد؟','چطور به یافته‌های AI اعتماد کنیم؟','مبتدی از کجا شروع کند؟']]]};
+const SL2={
+open:[['Welcome','خوش آمدید',['Over the next hour we walk through a security operations center and see, room by room, what AI changes in how we attack, defend and investigate. First the big picture, then pentest and bug bounty, then the other domains, and finally your questions.'],['در این یک ساعت اتاق‌به‌اتاق یک مرکز عملیات امنیت را می‌گردیم و می‌بینیم هوش مصنوعی در حمله، دفاع و بررسی چه چیزی را عوض می‌کند. اول تصویر کلی، بعد پنتست و باگ‌بانتی، بعد بقیه‌ی حوزه‌ها و در آخر پرسش و پاسخ.']],
+['What is cybersecurity?','امنیت سایبری چیست؟',['Cybersecurity keeps systems, data and people safe from misuse. We judge it with three questions: can someone read what they should not, change what they should not, or stop us from using what we need? Zero risk does not exist, so the job is to manage risk.'],['امنیت سایبری یعنی محافظت از سیستم‌ها، داده‌ها و آدم‌ها در برابر سوءاستفاده. با سه پرسش سنجیده می‌شود: کسی می‌تواند چیزی را بخواند که نباید؟ چیزی را تغییر دهد که نباید؟ یا مانع استفاده‌ی ما از چیزی شود که لازم داریم؟ ریسک صفر وجود ندارد، پس کار ما مدیریت ریسک است.']],
+['Who plays the game','بازیگران این میدان',['On one side are criminals, state actors and careless or angry insiders. On the other are red teams that simulate attacks, blue teams that defend, and a SOC that watches around the clock.'],['یک طرف مجرمان، بازیگران دولتی و افراد داخلی بی‌دقت یا ناراضی‌اند. طرف دیگر تیم قرمز است که حمله را شبیه‌سازی می‌کند، تیم آبی که دفاع می‌کند و SOC که شبانه‌روز نگاه می‌کند.']],
+['AI on the attacker side','هوش مصنوعی در سمت مهاجم',['AI writes flawless phishing in any language, reads code and maps targets in minutes, and lets less skilled attackers do what once needed an expert.'],['هوش مصنوعی فیشینگ بی‌نقص به هر زبانی می‌نویسد، در چند دقیقه کد را می‌خواند و هدف را نقشه‌برداری می‌کند و کاری را که زمانی متخصص می‌خواست به مهاجم کم‌مهارت‌تر هم می‌سپارد.']],
+['AI on the defender side','هوش مصنوعی در سمت مدافع',['The same technology summarises alerts, drafts detection rules and queries, and frees analysts to spend their time on judgment instead of routine.'],['همین فناوری هشدارها را خلاصه می‌کند، پیش‌نویس قوانین تشخیص و کوئری می‌نویسد و تحلیلگر را آزاد می‌کند که وقتش را صرف قضاوت کند، نه کار تکراری.']],
+['New risks and the human role','ریسک‌های جدید و نقش انسان',['AI can be confidently wrong, and AI systems are targets too, through prompt injection and data leakage. So humans decide and AI accelerates.'],['هوش مصنوعی می‌تواند با اطمینان کامل اشتباه کند و خود سامانه‌های AI هم هدف‌اند، با تزریق پرامپت و نشت داده. پس انسان تصمیم می‌گیرد و AI شتاب می‌دهد.']]],
+pentest:[['Pentest lifecycle and where AI helps','چرخه‌ی تست نفوذ و جایگاه AI',['A pentest moves from recon to fingerprinting, analysis, validation and report. AI speeds up analysis and writing, but authorization always comes from a written scope.'],['تست نفوذ از شناسایی به اثرانگشت‌گیری، تحلیل، تأیید و گزارش می‌رسد. AI تحلیل و نگارش را سریع می‌کند، اما مجوز همیشه از یک محدوده‌ی کتبی می‌آید.']],
+['Watch the AI assistant work','دستیار هوشمند را در حال کار ببینید',['Watch the assistant work on a simulated target. Every step feeds the next, and it explains why, not just what.'],['دستیار را روی یک هدف شبیه‌سازی‌شده ببینید. هر مرحله ورودی مرحله‌ی بعد است و دستیار دلیل را هم می‌گوید، نه فقط کار را.']]],
+red:[['AI-assisted adversary simulation','شبیه‌سازی مهاجم با کمک AI',['AI helps plan scenarios, map them to MITRE ATT&CK and draft safe lures for authorised exercises, while humans own scope, impact and ethics.'],['AI در طراحی سناریو، نگاشت به MITRE ATT&CK و نوشتن طعمه‌ی ایمن برای تمرین‌های مجاز کمک می‌کند، اما دامنه، اثر و اخلاق با انسان است.']]],
+vuln:[['AI in bug bounty','هوش مصنوعی در باگ‌بانتی',['In bug bounty, AI helps prioritise scope, write triage notes, check duplicates and sharpen reports. Never submit unverified AI output, because noise costs you reputation.'],['در باگ‌بانتی AI به اولویت‌بندی محدوده، یادداشت تریاژ، بررسی تکراری‌بودن و بهتر شدن گزارش کمک می‌کند. خروجی تأییدنشده‌ی AI را هرگز نفرست، چون نویز اعتبارت را می‌برد.']],
+['AI in code audit and research','هوش مصنوعی در ممیزی کد و تحقیق',['In code audit, AI spots risky patterns, suggests the CWE and a fix, and helps write fuzz harnesses and read patch diffs. It finds candidates; humans confirm exploitability.'],['در ممیزی کد، AI الگوهای پرخطر را نشان می‌دهد، CWE و اصلاح پیشنهاد می‌کند و به نوشتن harness فازینگ و خواندن diff وصله کمک می‌کند. کاندید پیدا می‌کند و قابلیت بهره‌برداری را انسان تأیید می‌کند.']]],
+soc:[['AI in the SOC','هوش مصنوعی در SOC',['In the SOC, AI summarises alerts, adds context and drafts SPL from plain language. The risk is a confident wrong answer, so analysts stay in the loop.'],['در SOC هوش مصنوعی هشدار را خلاصه می‌کند، زمینه اضافه می‌کند و از زبان ساده SPL می‌نویسد. ریسک آن پاسخ اشتباه با اطمینان بالاست، پس تحلیلگر در حلقه می‌ماند.']]],
+ti:[['AI in threat intelligence','هوش مصنوعی در اطلاعات تهدید',['Threat intelligence drowns in reports. AI reads and summarises them and pulls IOCs and TTPs into structured data, as long as the sources are verified.'],['اطلاعات تهدید زیر انبوه گزارش‌ها غرق است. AI آن‌ها را می‌خواند، خلاصه می‌کند و IOC و TTP را به داده‌ی ساختاریافته تبدیل می‌کند، به شرط راستی‌آزمایی منابع.']]],
+dfir:[['AI in digital forensics','هوش مصنوعی در فارنزیک دیجیتال',['In forensics, AI correlates events into a timeline and explains suspicious artifacts, while evidence integrity stays a human responsibility.'],['در فارنزیک، AI رویدادها را در یک خط زمانی هم‌بسته می‌کند و artifactهای مشکوک را توضیح می‌دهد، اما صحت شواهد مسئولیت انسان می‌ماند.']]],
+net:[['AI in network security','هوش مصنوعی در امنیت شبکه',['In network security, AI flags anomalies against a traffic baseline and reviews firewall rules and segmentation. Every change still needs human approval.'],['در امنیت شبکه، AI ناهنجاری را نسبت به خط پایه‌ی ترافیک نشان می‌دهد و قوانین فایروال و بخش‌بندی را بازبینی می‌کند. هر تغییر همچنان تأیید انسان می‌خواهد.']]],
+end:[['Key takeaways','نکات کلیدی',['AI multiplies force on both sides. Validate everything, stay inside scope and ethics, and start small: pick one workflow and measure it.'],['AI نیروی هر دو طرف را چند برابر می‌کند. همه‌چیز را تأیید کن، در محدوده و اخلاق بمان و کوچک شروع کن: یک جریان کاری را انتخاب کن و اندازه بگیر.']],
+['Questions and discussion','پرسش و پاسخ',['Now it is your turn. Will AI replace pentesters and analysts? How do we trust AI findings? Where should a beginner start? Or ask anything else.'],['حالا نوبت شماست. آیا AI جای پنتسترها و تحلیلگران را می‌گیرد؟ چطور به یافته‌های AI اعتماد کنیم؟ مبتدی از کجا شروع کند؟ یا هر چیز دیگری بپرسید.']]]};
+CH.forEach(h=>h.sl=SL2[h.id]||[]);
+const NS=h=>h.sl.length;let T0=0;
+const PART={open:0,pentest:1,red:1,vuln:1,soc:2,ti:2,dfir:2,net:2,end:3};
+const PN=[['PART 1 · INTRO','بخش ۱ · مقدمه',15],['PART 2 · AI IN PENTEST & BUG BOUNTY','بخش ۲ · AI در پنتست و باگ‌بانتی',20],['PART 3 · AI IN OTHER DOMAINS','بخش ۳ · AI در سایر حوزه‌ها',15],['PART 4 · Q&A','بخش ۴ · پرسش و پاسخ',15]];
+setInterval(()=>{const el=document.getElementById('clock');if(!T0){el.textContent='00:00 / 75:00';return}const e=Math.floor((Date.now()-T0)/1000),m=Math.floor(e/60),p=PART[CH[c].id],end=[15,35,50,65][p];el.textContent=String(m).padStart(2,'0')+':'+String(e%60).padStart(2,'0')+' · part '+PN[p][2]+'m · ends at '+end+'m';el.style.color=m>=end?'#ffcf5a':'#8da0b4'},1000);
+const $=id=>document.getElementById(id);let lang='en',c=0,b=0,busy=false,rid=0;
+const sl=ms=>new Promise(r=>setTimeout(r,ms));
+// room placement along the corridor: alternate sides
+const side=i=>i%2?-1:1,roomZ=i=>-(i-1)*9;
+function head(){const h=CH[c],L=lang;document.documentElement.dir=L=='fa'?'rtl':'ltr';
+ const sl=b>0&&b<=NS(h)?h.sl[b-1]:null,pn=PN[PART[h.id]],I=L=='en'?0:1;$('num').textContent=pn[I]+(c>0&&c<CH.length-1?' · '+c+'/7':'')+(sl?'  ·  '+b+'/'+NS(h):'');$('t').textContent=sl?sl[I]:h[L];$('pts').innerHTML=sl?'<p>'+sl[2+I].join(' ')+'</p>':'';$('d').textContent=L=='en'?h.de:h.df;
+ $('kt').innerHTML=h.kt?'<b>KEY TECH</b> · '+h.kt:'';$('ex').innerHTML=h.ex?'<b>RESULT</b> · '+h.ex:'';
+ $('title').dir=L=='fa'?'rtl':'ltr';$('notes').textContent=L=='en'?h.n:h.nf;$('notes').dir=L=='fa'?'rtl':'ltr';
+ $('sub').textContent=L=='en'?'Simulated demonstration':'نمایش شبیه‌سازی‌شده';$('bl').textContent=L=='en'?'فارسی':'EN';
+ const s=c>0&&c<CH.length-1?side(c):0;$('title').className=(b>0?'small ':'')+(s>0?'L':'R');$('term').className=s>0?'R':'L';
+ $('term').style.display=h.steps.length&&b>NS(h)?'flex':'none';$('tn').textContent=h.en.toUpperCase();
+ $('dots').innerHTML='';CH.forEach((_,i)=>{const e=document.createElement('i');e.className=i==c?'on':i<c?'done':'';e.onclick=()=>jump(i);$('dots').appendChild(e)})}
+function line(t,cls){const e=document.createElement('div');if(cls)e.className=cls;e.textContent=t;$('tb').appendChild(e);$('tb').scrollTop=1e9;return e}
+const cls=t=>t.startsWith('[AI]')?'a':t.startsWith('[!]')?'w':'';
+function addStep(k){const [cm,o]=CH[c].steps[k];line('$ '+cm,'k');o.split('\n').forEach(t=>line(t,cls(t)))}
+function draw(anim){head();$('tb').textContent='';$('bar').firstChild.style.width='0';
+ const ns=NS(CH[c]),n=Math.max(0,b-ns)-(anim?1:0);for(let k=0;k<n;k++)addStep(k);if(anim&&b>ns)play(b-ns-1)}
+async function play(k){const my=++rid;busy=true;const [cm,o]=CH[c].steps[k];const l=line('$ ','k');
+ for(const ch of cm){l.textContent+=ch;await sl(24);if(my!=rid)return}
+ for(let p=0;p<=100;p+=10){$('bar').firstChild.style.width=p+'%';await sl(40);if(my!=rid)return}
+ for(const t of o.split('\n')){line(t,cls(t));await sl(260);if(my!=rid)return}
+ $('bar').firstChild.style.width='0';busy=false}
+function finish(){rid++;busy=false;draw(false)}
+function next(){if(!T0)T0=Date.now();if(busy)return finish();const h=CH[c];
+ if(b<NS(h)+h.steps.length){b++;draw(true)}else if(c<CH.length-1){c++;b=0;fly();draw(false)}}
+function prev(){rid++;busy=false;if(b>0){b--;draw(false)}else if(c>0){c--;b=NS(CH[c])+CH[c].steps.length;fly();draw(false)}}
+function jump(i){rid++;busy=false;c=i;b=0;fly();draw(false)}
+document.addEventListener('keydown',e=>{const k=e.key;
+ if(k=='ArrowRight'||k==' '||k=='PageDown'){e.preventDefault();next()}
+ else if(k=='ArrowLeft'||k=='PageUp'){e.preventDefault();prev()}
+ else if(k=='f'||k=='F')fs();else if(k=='h'||k=='H')document.body.classList.toggle('hide');
+ else if(k=='r'||k=='R'){T0=0;jump(0)}else if(k=='l'||k=='L')tl();
+ else if(k=='p'||k=='P')$('notes').style.display=$('notes').style.display=='block'?'none':'block';
+ else if(/^[0-8]$/.test(k))jump(+k)});
+function fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}
+function tl(){lang=lang=='en'?'fa':'en';head()}
+$('bn').onclick=next;$('bp').onclick=prev;$('bl').onclick=tl;$('bf').onclick=fs;
+// ---- 3D ----
+let fly=()=>{};
+if(!window.THREE){$('load').textContent='3D library failed to load'}else{
+const R=new THREE.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);document.body.prepend(R.domElement);
+const sc=new THREE.Scene();sc.background=new THREE.Color(0x070b12);sc.fog=new THREE.Fog(0x070b12,14,48);
+const cam=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,100);
+sc.add(new THREE.HemisphereLight(0x9bbddb,0x101820,.65));
+const M=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,metalness:.6,roughness:.45},o));
+const B=(w,h,d,m)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+const glow=c=>new THREE.MeshBasicMaterial({color:c});
+// corridor
+const len=80;const fl=B(6,.2,len,M(0x0e151f,{metalness:.85,roughness:.3}));fl.position.set(0,-.1,-20);sc.add(fl);
+const ce=B(6,.2,len,M(0x0a0f17));ce.position.set(0,4.6,-20);sc.add(ce);
+for(let z=14;z>-62;z-=6){const s=B(.15,.05,2.4,glow(0x2f6f95));s.position.set(0,4.45,z);sc.add(s)}
+const ew=B(6,4.8,.3,M(0x142030));ew.position.set(0,2.3,-62);sc.add(ew);
+// lobby: holo globe + reception ring
+const ring=new THREE.Mesh(new THREE.TorusGeometry(2.2,.05,8,64),glow(0x3aa0d8));ring.rotation.x=Math.PI/2;ring.position.set(0,.1,8);sc.add(ring);
+const globe=new THREE.Mesh(new THREE.SphereGeometry(1.3,28,18),new THREE.MeshBasicMaterial({color:0x3aa0d8,wireframe:true,transparent:true,opacity:.55}));globe.position.set(0,2.4,8);sc.add(globe);
+const pl0=new THREE.PointLight(0x3aa0d8,1.2,14);pl0.position.set(0,3,8);sc.add(pl0);
+function scr(c,seed){const cv=document.createElement('canvas');cv.width=256;cv.height=144;const x=cv.getContext('2d');x.fillStyle='#050a10';x.fillRect(0,0,256,144);const col='#'+c.toString(16).padStart(6,'0');x.fillStyle=col;x.fillRect(0,0,256,14);x.globalAlpha=.8;for(let i=0;i<9;i++){x.fillRect(10,26+i*12,40+((i*37+seed*53)%150),5)}x.globalAlpha=.4;x.fillRect(200,40,44,70);return new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})}
+// department rooms
+const targets=[{p:new THREE.Vector3(0,2.6,18),l:new THREE.Vector3(0,2.4,8)}];
+for(let i=1;i<=7;i++){const d=CH[i],s=side(i),z=roomZ(i),g=new THREE.Group();g.position.set(s*6.4,0,z);g.rotation.y=s>0?-Math.PI/2:Math.PI/2;
+ const fm=B(7,.2,6,M(0x16202d));fm.position.y=.1;g.add(fm);
+ const bw=B(7,3.8,.2,M(0x1b2a3b));bw.position.set(0,1.9,-3);g.add(bw);
+ [-3.5,3.5].forEach(x=>{const w=B(.1,3.6,6,M(0x88c0e0,{transparent:true,opacity:.16,metalness:.1,roughness:.05}));w.position.set(x,1.8,0);g.add(w)});
+ const st=B(7,.08,.08,glow(d.c));st.position.set(0,3.8,-2.9);g.add(st);
+ const pl=new THREE.PointLight(d.c,1,10);pl.position.set(0,3,0);g.add(pl);
+ const dk=B(4.4,.12,1.2,M(0x2a3a4e));dk.position.set(0,.9,-1);g.add(dk);
+ [-1.4,0,1.4].forEach(x=>{const m=B(1.2,.7,.05,scr(d.c,Math.round(x*10)+i));m.position.set(x,1.6,-1.5);m.rotation.y=-x*.1;g.add(m)});
+ [-2.8,2.8].forEach(x=>{const rk=B(.8,2.6,.9,M(0x0b0f16));rk.position.set(x,1.4,-2.3);g.add(rk);for(let k=0;k<6;k++){const l=B(.5,.04,.02,glow(d.c));l.position.set(x,.6+k*.38,-1.84);g.add(l)}});
+ const add=(m,x,y,z)=>{m.position.set(x,y,z);g.add(m);return m};const SB=(w,h,p)=>B(w,h,p,glow(d.c));
+ const WF=r=>new THREE.Mesh(new THREE.SphereGeometry(r,16,10),new THREE.MeshBasicMaterial({color:d.c,wireframe:true,transparent:true,opacity:.6}));
+ if(d.id=='pentest'){add(new THREE.Mesh(new THREE.CylinderGeometry(.9,1,.7,24),M(0x1a2636)),0,.45,1.3);add(WF(.5),0,1.5,1.3);[[-.5,0],[.4,.3],[0,-.5],[.6,-.4]].forEach(([a,z2])=>add(new THREE.Mesh(new THREE.SphereGeometry(.09,8,8),glow(d.c)),a,1.0,1.3+z2))}
+ if(d.id=='red'){for(let k=0;k<5;k++){add(new THREE.Mesh(new THREE.SphereGeometry(.14,10,10),glow(d.c)),-2.4+k*1.2,2.6+(k%2)*.5,-2.8);if(k<4)add(SB(1.1,.04,.04),-1.8+k*1.2,2.85,-2.8)}}
+ if(d.id=='soc'){for(let r=0;r<2;r++)for(let k=0;k<3;k++)add(B(1.6,.8,.05,scr(d.c,k+r*3)),-1.75+k*1.75,2.5+r*.9,-2.85)}
+ if(d.id=='vuln'){add(B(2.4,1.5,.05,scr(d.c,7)),-1.6,2.7,-2.85);add(B(1.4,1.5,.05,scr(d.c,9)),1.6,2.7,-2.85)}
+ if(d.id=='ti'){add(new THREE.Mesh(new THREE.CylinderGeometry(.5,.6,.9,20),M(0x1a2636)),0,.55,1.3);add(WF(.75),0,1.7,1.3)}
+ if(d.id=='dfir'){add(B(3,.1,1,M(0x2a3a4e)),0,.8,1.5);for(let k=0;k<6;k++)add(SB(.4,.08,.25),-1.25+k*.5,.9,1.5);add(SB(4,.05,.05),0,2.6,-2.85)}
+ if(d.id=='net'){for(let k=0;k<5;k++){add(B(1.6,.18,.7,M(0x0f1620)),0,.7+k*.28,1.3);add(SB(1.2,.03,.02),0,.7+k*.28,.94)}}
+ const cv=document.createElement('canvas');cv.width=512;cv.height=72;const x=cv.getContext('2d');x.fillStyle='#0b121b';x.fillRect(0,0,512,72);x.fillStyle='#'+d.c.toString(16).padStart(6,'0');x.font='bold 32px sans-serif';x.textAlign='center';x.fillText(d.en.toUpperCase(),256,46);
+ const sg=new THREE.Mesh(new THREE.PlaneGeometry(4.6,.65),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));sg.position.set(0,4.3,-2.85);g.add(sg);sc.add(g);
+ targets.push({p:new THREE.Vector3(-s*.6,2.3,z+4.6),l:new THREE.Vector3(s*8.2,1.6,z-.2)})}
+targets.push({p:new THREE.Vector3(0,14,16),l:new THREE.Vector3(0,0,-24)});
+const goal={p:targets[0].p.clone(),l:targets[0].l.clone()},look=goal.l.clone();cam.position.copy(goal.p);
+fly=()=>{goal.p.copy(targets[c].p);goal.l.copy(targets[c].l)};
+addEventListener('resize',()=>{R.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()});
+(function loop(t){requestAnimationFrame(loop);globe.rotation.y=t*.0005;
+ const sw=Math.sin(t*.0003)*.12;cam.position.lerp(goal.p,.035);look.lerp(goal.l,.045);cam.lookAt(look.x+sw,look.y,look.z);R.render(sc,cam)})(0);
+setTimeout(()=>{$('load').style.opacity=0;setTimeout(()=>$('load').remove(),700)},600)}
+draw(false);
+</script></body></html>
